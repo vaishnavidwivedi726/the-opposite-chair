@@ -352,8 +352,8 @@ footer .social{display:flex;gap:1.6rem;justify-content:flex-end}
       <input type="email" id="notify-email" name="email" placeholder="Your email" required autocomplete="email" aria-label="Your email">
       <button class="btn btn-solid" type="submit" id="notify-btn">Notify me</button>
     </form>
-    <small>One email when we launch. Unsubscribe with a reply.</small>
-    <p class="ok" id="notify-ok">You're on the list. See you at episode one.</p>
+    <small>Opens a 30-second form. One email when we launch, nothing else.</small>
+    <p class="ok" id="notify-ok">Finish the two quick questions in the form that just opened, and you're on the list.</p>
   </div>
 </section>
 
@@ -373,62 +373,42 @@ footer .social{display:flex;gap:1.6rem;justify-content:flex-end}
 
 <script>
 /* ============================ CONFIG ============================
-   1) NOTIFY ME → saved to a Google Sheet + emailed to you.
-      Create a Google Form with ONE short-answer question ("Email").
-      - NOTIFY_FORM_ID: the long id in the form's URL
-        https://docs.google.com/forms/d/e/<THIS_PART>/viewform
-      - NOTIFY_ENTRY_ID: click ⋮ → "Get pre-filled link", type anything
-        in the Email box, click "Get link". The link contains
-        ...entry.123456789=... → use "entry.123456789".
-      In the form: Responses → Link to Sheets (your database), and
-      ⋮ → "Get email notifications for new responses".
-      Until these are filled, Notify-me falls back to opening the
-      visitor's email app addressed to you.
-   2) BE A GUEST → your Google Form link (the /viewform URL).
-      Until filled, the button opens an email to you instead.
+   One Google Form powers both buttons. Responses land in the
+   form's linked Google Sheet and Google emails you each one
+   (Responses → ⋮ → Get email notifications for new responses).
+
+   FORM_URL        your form's /viewform link
+   EMAIL_ENTRY_ID  optional. Lets "Notify me" pre-fill the visitor's
+                   email into the form. Get it: form ⋮ → "Get pre-filled
+                   link", type anything in "Please share your email",
+                   click Get link → copy "entry.123456789" from the URL.
    ================================================================ */
 var CONFIG = {
-  NOTIFY_FORM_ID: "",        // e.g. "1FAIpQLSd...long id..."
-  NOTIFY_ENTRY_ID: "",       // e.g. "entry.123456789"
-  GUEST_FORM_URL: "",        // e.g. "https://docs.google.com/forms/d/e/.../viewform"
+  FORM_URL: "https://docs.google.com/forms/d/e/1FAIpQLSd_lQv-JplzZkkfWNeqcsc2wHdhYW44yfiWqkYcqhh5_SXBfg/viewform",
+  EMAIL_ENTRY_ID: "",
   CONTACT_EMAIL: "vaishnavi@theoppositechair.com"
 };
 
 (function(){
-  // Be a guest button → Google Form if configured
-  if (CONFIG.GUEST_FORM_URL) {
-    var g = document.getElementById('guest-btn');
-    g.href = CONFIG.GUEST_FORM_URL; g.target = "_blank"; g.rel = "noopener";
-  }
+  // Be a guest → the form
+  var g = document.getElementById('guest-btn');
+  g.href = CONFIG.FORM_URL; g.target = "_blank"; g.rel = "noopener";
 
-  // Notify me
+  // Notify me → the form, with the email pre-filled when EMAIL_ENTRY_ID is set
   var form = document.getElementById('notify-form');
   var input = document.getElementById('notify-email');
-  var btn = document.getElementById('notify-btn');
   var section = document.getElementById('notify');
 
   form.addEventListener('submit', function(e){
     e.preventDefault();
     var email = input.value.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { input.focus(); input.style.borderColor = '#C8B48A'; return; }
-
-    if (CONFIG.NOTIFY_FORM_ID && CONFIG.NOTIFY_ENTRY_ID) {
-      btn.disabled = true; btn.textContent = 'Saving…';
-      var url = 'https://docs.google.com/forms/d/e/' + CONFIG.NOTIFY_FORM_ID + '/formResponse';
-      var data = new FormData(); data.append(CONFIG.NOTIFY_ENTRY_ID, email);
-      fetch(url, { method: 'POST', mode: 'no-cors', body: data })
-        .catch(function(){ /* no-cors always resolves opaque; errors here are network-level */ })
-        .finally(function(){
-          try { localStorage.setItem('toc_notified', '1'); } catch(_){}
-          section.classList.add('done');
-        });
-    } else {
-      // Fallback: open the visitor's email app addressed to you
-      window.location.href = 'mailto:' + CONFIG.CONTACT_EMAIL
-        + '?subject=' + encodeURIComponent('Notify me when The Opposite Chair launches')
-        + '&body=' + encodeURIComponent('Please add ' + email + ' to the launch list.');
-      section.classList.add('done');
-    }
+    var url = CONFIG.FORM_URL + '?usp=pp_url';
+    if (CONFIG.EMAIL_ENTRY_ID) url += '&' + CONFIG.EMAIL_ENTRY_ID + '=' + encodeURIComponent(email);
+    var w = window.open(url, '_blank', 'noopener');
+    if (!w) window.location.href = url;
+    try { localStorage.setItem('toc_notified', '1'); } catch(_){}
+    section.classList.add('done');
   });
 
   try { if (localStorage.getItem('toc_notified') === '1') section.classList.add('done'); } catch(_){}
